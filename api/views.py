@@ -19,6 +19,10 @@ class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
 
+
+
+    
+
     # ✅ Employer can list only their jobs
     @action(detail=False, methods=["get"])
     def my_jobs(self, request):
@@ -30,6 +34,15 @@ class JobViewSet(viewsets.ModelViewSet):
 class JobApplicationViewSet(viewsets.ModelViewSet):
     queryset = JobApplication.objects.all()
     serializer_class = JobApplicationSerializer
+
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_id = self.request.query_params.get("job_id")
+        if job_id:
+            queryset = queryset.filter(job__id=job_id)  # Filter by Job ID
+        return queryset
+    
 
     # ✅ Worker applies for a job 
     @action(detail=False, methods=["post"]) 
