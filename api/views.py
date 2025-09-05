@@ -1,7 +1,9 @@
 # shramo/views.py
 from rest_framework import viewsets
-from .models import Worker, Employer, Job, JobContact
-from .serializers import WorkerSerializer, EmployerSerializer, JobSerializer, JobContactSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import Worker, Employer, Job, JobApplication
+from .serializers import WorkerSerializer, EmployerSerializer, JobSerializer, JobApplicationSerializer
 
 class WorkerViewSet(viewsets.ModelViewSet):
     queryset = Worker.objects.all()
@@ -17,6 +19,74 @@ class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
 
-class JobContactViewSet(viewsets.ModelViewSet):
-    queryset = JobContact.objects.all()
-    serializer_class = JobContactSerializer
+    # ✅ Employer can list only their jobs
+    @action(detail=False, methods=["get"])
+    def my_jobs(self, request):
+        employer_phone = request.query_params.get("employer_phone")
+        jobs = Job.objects.filter(employer_phone=employer_phone)
+        serializer = self.get_serializer(jobs, many=True)
+        return Response(serializer.data)
+
+class JobApplicationViewSet(viewsets.ModelViewSet):
+    queryset = JobApplication.objects.all()
+    serializer_class = JobApplicationSerializer
+
+    # ✅ Employer accepts worker
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+        application = self.get_object()
+        application.employer_accept = True
+        application.status = "accepted"
+        application.worker_phone.is_available = False
+        application.worker_phone.save()
+        application.save()
+
+        # 🔹 If worker already accepted too → mark job as assigned
+        if application.worker_accept and application.employer_accept:
+            application.job.status = "assigned"
+            application.job.save()
+
+        return Response({"message": "Worker accepted", "status": application.status})
+
+    # ✅ Worker accepts job
+    @action(detail=True, methods=["post"])
+    def worker_accept(self, request, pk=None):
+        application = self.get_object()
+        application.worker_accept = True
+        application.status = "accepted"
+        application.worker_phone.is_available = False
+        application.worker_phone.save()
+        application.save()
+
+        # 🔹 If employer already accepted too → mark job as assigned
+        if application.worker_accept and application.employer_accept:
+            application.job.status = "assigned"
+            Worker.is_available= False
+            application.job.save()
+
+        return Response({"message": "Worker confirmed job", "status": application.status})
+
+    # ✅ Mark complete (by worker or employer)
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        role = request.data.get("role")
+        application = self.get_object()
+
+        if role == "employer":
+            application.employer_complete = True
+        elif role == "worker":
+            application.worker_complete = True
+        else:
+            return Response({"error": "Invalid role"}, status=400)
+
+        # 🔹 If both completed → mark application + job as completed
+        if application.worker_complete and application.employer_complete:
+            application.status = "completed"
+            application.worker_phone.is_available = True
+            application.worker_phone.save()
+            application.job.status = "completed"
+            application.job.save()
+
+        application.save()
+        return Response({"message": "Completion updated", "status": application.status})
+
