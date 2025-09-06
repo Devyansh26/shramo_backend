@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Worker, Employer, Job, JobApplication
 from .serializers import WorkerSerializer, EmployerSerializer, JobSerializer, JobApplicationSerializer
+from rest_framework import status
 
 class WorkerViewSet(viewsets.ModelViewSet):
     queryset = Worker.objects.all()
@@ -64,6 +65,22 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         application, created = JobApplication.objects.get_or_create( job=job, worker_phone=worker ) 
         
         return Response(JobApplicationSerializer(application).data)
+    
+
+    @action(detail=False, methods=["get"])
+    def get_by_job_and_worker(self, request):
+        job_id = request.query_params.get("job_id")
+        worker_phone = request.query_params.get("worker_phone")
+
+        if not job_id or not worker_phone:
+            return Response({"error": "job_id and worker_phone required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            application = JobApplication.objects.get(job__id=job_id, worker_phone__phone=worker_phone)
+            return Response(JobApplicationSerializer(application).data, status=status.HTTP_200_OK)
+        except JobApplication.DoesNotExist:
+            return Response({"application": None}, status=status.HTTP_200_OK)
+
 
     # ✅ Employer accepts worker
     @action(detail=True, methods=["post"])
