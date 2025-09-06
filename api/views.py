@@ -108,40 +108,41 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             return Response({"application": None}, status=status.HTTP_200_OK)
 
 
-    # ✅ Employer accepts worker
+    # Employer accepts worker → wait for worker confirmation
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
         application = self.get_object()
         application.employer_accept = True
-        application.status = "accepted"
-        application.worker_phone.is_available = False
-        application.worker_phone.save()
+        application.status = "waiting_for_worker_confirmation"  # 👈 new status
         application.save()
 
-        # 🔹 If worker already accepted too → mark job as assigned
-        if application.worker_accept and application.employer_accept:
-            application.job.status = "assigned"
-            application.job.save()
+        return Response({
+            "message": "Worker selected. Waiting for worker confirmation.",
+            "status": application.status
+        })
 
-        return Response({"message": "Worker accepted", "status": application.status})
 
-    # ✅ Worker accepts job
+    # Worker confirms job
     @action(detail=True, methods=["post"])
     def worker_accept(self, request, pk=None):
         application = self.get_object()
         application.worker_accept = True
-        application.status = "accepted"
-        application.worker_phone.is_available = False
-        application.worker_phone.save()
-        application.save()
 
-        # 🔹 If employer already accepted too → mark job as assigned
-        if application.worker_accept and application.employer_accept:
+        if application.employer_accept:
+            application.status = "accepted"  # fully accepted now
+            application.worker_phone.is_available = False
+            application.worker_phone.save()
             application.job.status = "assigned"
-            Worker.is_available= False
             application.job.save()
+        else:
+            application.status = "pending"  # just in case employer hasn’t chosen yet
 
-        return Response({"message": "Worker confirmed job", "status": application.status})
+        application.save()
+        return Response({
+            "message": "Worker confirmed job",
+            "status": application.status
+        })
+
 
     # ✅ Mark complete (by worker or employer)
     @action(detail=True, methods=["post"])

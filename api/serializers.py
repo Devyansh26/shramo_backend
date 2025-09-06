@@ -23,6 +23,13 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('status', 'applied_at', 'updated_at', 'worker')
 
+    # def get_derived_status(self, obj):
+    #     if obj.status == "pending" and obj.employer_accept and not obj.worker_accept:
+    #         return "waiting_for_worker_confirmation"
+    #     return obj.status
+
+
+
 class JobSerializer(serializers.ModelSerializer):
     applications = JobApplicationSerializer(many=True, read_only=True)
 
@@ -30,3 +37,5 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
         fields = '__all__'
         read_only_fields = ('status', 'created_at')
+
+    

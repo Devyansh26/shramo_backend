@@ -69,13 +69,14 @@ class JobApplication(models.Model):
 
     # ✅ Derived status
     status = models.CharField(
-        max_length=20,
+        max_length=40,
         choices=[
-            ('pending', 'pending'),     # worker applied
-            ('accepted', 'accepted'),   # employer accepted worker
-            ('declined', 'declined'),   # employer declined worker
-            ('completed', 'completed')  # both marked complete
-        ],
+        ('pending', 'pending'),     
+        ('waiting_for_worker_confirmation', 'waiting_for_worker_confirmation'),  # 👈 add this
+        ('accepted', 'accepted'),   
+        ('declined', 'declined'),   
+        ('completed', 'completed')  
+    ],
         default='pending'
     )
 
