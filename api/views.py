@@ -108,51 +108,42 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             return Response({"application": None}, status=status.HTTP_200_OK)
 
 
-    # Employer accepts worker
+    # ✅ Employer accepts worker
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
         application = self.get_object()
         application.employer_accept = True
-        application.status = "waiting_for_worker_confirmation"
+        application.status = "accepted"
+        application.worker_phone.is_available = False
+        application.worker_phone.save()
         application.save()
 
-        # ✅ Update worker availability
-        worker = application.worker
-        worker.is_available = False
-        worker.save()
-
-        # If both accepted → assign job
+        # 🔹 If worker already accepted too → mark job as assigned
         if application.worker_accept and application.employer_accept:
-            application.status = "accepted"
             application.job.status = "assigned"
             application.job.save()
-            application.save()
 
         return Response({"message": "Worker accepted", "status": application.status})
 
-    # Worker accepts job
+    # ✅ Worker accepts job
     @action(detail=True, methods=["post"])
     def worker_accept(self, request, pk=None):
         application = self.get_object()
         application.worker_accept = True
-        application.status = "waiting_for_employer_confirmation"
+        application.status = "accepted"
+        application.worker_phone.is_available = False
+        application.worker_phone.save()
         application.save()
 
-        # ✅ Update worker availability
-        worker = application.worker
-        worker.is_available = False
-        worker.save()
-
-        # If employer already accepted → mark job assigned
+        # 🔹 If employer already accepted too → mark job as assigned
         if application.worker_accept and application.employer_accept:
-            application.status = "accepted"
             application.job.status = "assigned"
+            Worker.is_available= False
             application.job.save()
-            application.save()
 
         return Response({"message": "Worker confirmed job", "status": application.status})
 
-    # Mark job complete (by worker or employer)
+    # ✅ Mark complete (by worker or employer)
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         role = request.data.get("role")
@@ -165,17 +156,14 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         else:
             return Response({"error": "Invalid role"}, status=400)
 
-        application.save()
-
-        # 🔹 If both completed → mark job and free worker
+        # 🔹 If both completed → mark application + job as completed
         if application.worker_complete and application.employer_complete:
             application.status = "completed"
+            application.worker_phone.is_available = True
+            application.worker_phone.save()
             application.job.status = "completed"
             application.job.save()
 
-            worker = application.worker
-            worker.is_available = True
-            worker.save()
-            application.save()
-
+        application.save()
         return Response({"message": "Completion updated", "status": application.status})
+
