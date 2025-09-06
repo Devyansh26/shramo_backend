@@ -16,13 +16,10 @@ class EmployerViewSet(viewsets.ModelViewSet):
     serializer_class = EmployerSerializer
     lookup_field = 'phone'
 
+# shramo/views.py
 class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
-
-
-
-    
 
     # ✅ Employer can list only their jobs
     @action(detail=False, methods=["get"])
@@ -31,6 +28,35 @@ class JobViewSet(viewsets.ModelViewSet):
         jobs = Job.objects.filter(employer_phone=employer_phone)
         serializer = self.get_serializer(jobs, many=True)
         return Response(serializer.data)
+
+    # ✅ Employer history (completed jobs only)
+    @action(detail=False, methods=["get"])
+    def employer_history(self, request):
+        employer_phone = request.query_params.get("employer_phone")
+        if not employer_phone:
+            return Response({"error": "employer_phone required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        jobs = Job.objects.filter(employer_phone=employer_phone, status="completed")
+        serializer = self.get_serializer(jobs, many=True)
+        return Response(serializer.data)
+
+    # ✅ Worker history (completed jobs only)
+    @action(detail=False, methods=["get"])
+    def worker_history(self, request):
+        worker_phone = request.query_params.get("worker_phone")
+        if not worker_phone:
+            return Response({"error": "worker_phone required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # fetch completed applications for this worker
+        applications = JobApplication.objects.filter(
+            worker_phone__phone=worker_phone,
+            status="completed"
+        ).select_related("job")
+
+        jobs = [app.job for app in applications if app.job.status == "completed"]
+        serializer = self.get_serializer(jobs, many=True)
+        return Response(serializer.data)
+
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
     queryset = JobApplication.objects.all()
