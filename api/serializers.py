@@ -1,6 +1,6 @@
 # shramo/serializers.py
 from rest_framework import serializers
-from .models import Worker, Employer, Job, JobApplication
+from .models import Worker, Employer, Job, JobApplication,JobContact,Booking
 
 class WorkerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,3 +39,24 @@ class JobSerializer(serializers.ModelSerializer):
         read_only_fields = ('status', 'created_at')
 
     
+class JobContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobContact
+        fields = '__all__'
+
+class BookingSerializer(serializers.ModelSerializer):
+    employer = EmployerSerializer(source="employer_phone", read_only=True)
+    worker = WorkerSerializer(source="worker_phone", read_only=True)
+    employer_phone = serializers.SlugRelatedField(
+        queryset=Employer.objects.all(),
+        slug_field='phone'
+    )
+    worker_phone = serializers.SlugRelatedField(
+        queryset=Worker.objects.all(),
+        slug_field='phone'
+    )
+
+    class Meta:
+        model = Booking
+        fields = '__all__'
+        read_only_fields = ('status', 'created_at')

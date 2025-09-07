@@ -90,7 +90,6 @@ class JobApplication(models.Model):
     def __str__(self):
         return f"Job {self.job.id} - Worker {self.worker_phone} ({self.status})"
 
-
 class JobContact(models.Model):
     job = models.ForeignKey(
         Job,
@@ -114,3 +113,33 @@ class JobContact(models.Model):
     class Meta:
         db_table = 'job_contacts'
         unique_together = ('job', 'worker_phone')
+
+class Booking(models.Model):
+    employer_phone = models.ForeignKey(
+        Employer,
+        on_delete=models.CASCADE,
+        to_field='phone',
+        db_column='employer_phone'
+    )
+    worker_phone = models.ForeignKey(
+        Worker,
+        on_delete=models.CASCADE,
+        to_field='phone',
+        db_column='worker_phone'
+    )
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=100, blank=True)
+    category = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    employer_response = models.BooleanField(null=True, default=None)
+    worker_response = models.BooleanField(null=True, default=None)
+    employer_complete = models.BooleanField(default=False)
+    worker_complete = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=20,
+        choices=[('pending', 'pending'), ('accepted', 'accepted'), ('declined', 'declined'), ('completed', 'completed')],
+        default='pending'
+    )
+
+    class Meta:
+        db_table = 'bookings'

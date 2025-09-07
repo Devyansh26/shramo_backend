@@ -2,8 +2,8 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Worker, Employer, Job, JobApplication
-from .serializers import WorkerSerializer, EmployerSerializer, JobSerializer, JobApplicationSerializer
+from .models import Worker, Employer, Job, JobApplication,JobContact,Booking
+from .serializers import WorkerSerializer, EmployerSerializer, JobSerializer, JobApplicationSerializer,JobContactSerializer,BookingSerializer
 from rest_framework import status
 
 class WorkerViewSet(viewsets.ModelViewSet):
@@ -168,3 +168,73 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         application.save()
         return Response({"message": "Completion updated", "status": application.status})
 
+
+class JobContactViewSet(viewsets.ModelViewSet):
+    queryset = JobContact.objects.all()
+    serializer_class = JobContactSerializer
+
+class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+
+    def perform_create(self, serializer):
+        booking = serializer.save()
+        booking.employer_response = True
+        booking.save()
+
+    @action(detail=True, methods=['post'])
+    def respond(self, request, pk=None):
+        booking = self.get_object()
+        role = request.data.get('role')
+        response = request.data.get('response')  # assume boolean
+        if role == 'employer':
+            booking.employer_response = response
+        elif role == 'worker':
+            booking.worker_response = response
+        else:
+            return Response({"error": "Invalid role"}, status=status.HTTP_400_BAD_REQUEST)
+        if booking.employer_response is False or booking.worker_response is False:
+            booking.status = 'declined'
+        elif booking.employer_response and booking.worker_response:
+            booking.status = 'accepted'
+            booking.worker_phone.is_available = False
+            booking.worker_phone.save()
+        booking.save()
+        return Response({"message": "Response updated", "status": booking.status})
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        booking = self.get_object()
+        role = request.data.get('role')
+        if role == 'employer':
+            booking.employer_complete = True
+        elif role == 'worker':
+            booking.worker_complete = True
+        else:
+            return Response({"error": "Invalid role"}, status=status.HTTP_400_BAD_REQUEST)
+        if booking.employer_complete and booking.worker_complete:
+            booking.status = 'completed'
+            booking.worker_phone.is_available = True
+            booking.worker_phone.save()
+        booking.save()
+        return Response({"message": "Completion updated", "status": booking.status})
+
+    @action(detail=False, methods=['get'])
+    def my_bookings(self, request):
+        employer_phone = request.query_params.get('employer_phone')
+        if not employer_phone:
+            return Response({"error": "employer_phone required"}, status=status.HTTP_400_BAD_REQUEST)
+        bookings = Booking.objects.filter(employer_phone__phone=employer_phone)
+        serializer = self.get_serializer(bookings, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def worker_bookings(self, request):
+        worker_phone = request.query_params.get('worker_phone')
+        if not worker_phone:
+            return Response({"error": "worker_phone required"}, status=status.HTTP_400_BAD_REQUEST)
+        bookings = Booking.objects.filter(worker_phone=worker_phone)
+        # print("DEBUG: Found bookings:", bookings.count())  # Add this line
+
+        serializer = self.get_serializer(bookings, many=True)
+        return Response(serializer.data)
