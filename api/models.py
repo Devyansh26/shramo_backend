@@ -7,7 +7,17 @@ class Worker(models.Model):
     location = models.CharField(max_length=200)
     skills = models.CharField(max_length=500)  # comma separated
     is_available = models.BooleanField(default=True)
-    rating = models.DecimalField(max_digits=2, decimal_places=1, default=0.0)
+    rating = models.IntegerField(default=0)
+
+    longitude = models.CharField(null=True, blank=True)
+    latitude = models.CharField(null=True, blank=True)
+    pincode = models.CharField(max_length=10, null=True, blank=True)
+    age = models.IntegerField(null=True, blank=True)
+    gender = models.CharField(max_length=10, null=True, blank=True)  # e.g., Male/Female/Other
+    has_phone = models.BooleanField(default=True)
+    wages = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # store daily/monthly wages
+
+
 
     class Meta:
         db_table = 'workers'
@@ -17,6 +27,9 @@ class Employer(models.Model):
     name = models.CharField(max_length=100)
     location = models.CharField(max_length=200)
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0.0)
+    pincode = models.CharField(max_length=10, null=True, blank=True)
+    longitude = models.CharField(null=True, blank=True)
+    latitude = models.CharField(null=True, blank=True)
 
     class Meta:
         db_table = 'employers'
